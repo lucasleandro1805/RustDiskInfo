@@ -152,25 +152,42 @@ impl eframe::App for App {
         let green = Color32::from_rgb(65, 190, 152);
         ctx.set_visuals(egui::Visuals::dark());
         egui::CentralPanel::default().frame(egui::Frame::NONE.fill(bg)).show(ctx, |ui| {
-            ui.add_space(10.0);
-            ui.horizontal(|ui| {
-                ui.label(RichText::new("◉  RUSTDISKINFO").size(17.0).strong());
-                ui.label(RichText::new("S.M.A.R.T. MONITOR").size(10.0).color(muted));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("⟳ Refresh").clicked() { self.refresh(); }
-                    ui.label(RichText::new(&self.message).size(11.0).color(muted));
+            egui::Frame::NONE
+                .fill(Color32::from_rgb(35, 42, 52))
+                .inner_margin(egui::Margin::symmetric(18, 10))
+                .show(ui, |ui| {
+                    ui.set_min_height(38.0);
+                    ui.horizontal(|ui| {
+                        let (logo_rect, _) = ui.allocate_exact_size(egui::vec2(20.0, 20.0), egui::Sense::hover());
+                        ui.painter().circle_filled(logo_rect.center(), 8.0, green);
+                        ui.painter().circle_filled(logo_rect.center(), 4.0, Color32::from_rgb(23, 33, 42));
+                        ui.label(RichText::new("RustDiskInfo").size(16.0).strong());
+                        ui.label(RichText::new("S.M.A.R.T. MONITOR").size(10.0).color(muted));
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            if ui.button("⟳  Refresh").clicked() { self.refresh(); }
+                            ui.label(RichText::new(&self.message).size(11.0).color(muted));
+                        });
+                    });
                 });
-            });
-            ui.add_space(12.0);
+            ui.add_space(18.0);
 
             ui.horizontal_wrapped(|ui| {
                 for (i, disk) in self.disks.iter().enumerate() {
                     let selected = self.selected == i;
                     let health_color = status_color(&disk.health, green);
-                    let label = format!("●  {}  •  {}  •  {}", disk.path, disk.health, disk.temp);
-                    if ui.add(egui::Button::new(RichText::new(label).size(12.0).color(health_color))
-                        .fill(if selected { Color32::from_rgb(39, 61, 65) } else { card }))
-                        .clicked() { self.selected = i; }
+                    let (rect, response) = ui.allocate_exact_size(egui::vec2(420.0, 66.0), egui::Sense::click());
+                    let fill = if selected { Color32::from_rgb(41, 63, 67) } else { card };
+                    ui.painter().rect_filled(rect, 10.0, fill);
+                    if selected {
+                        ui.painter().rect_stroke(rect, 10.0, egui::Stroke::new(1.0_f32, green), egui::StrokeKind::Inside);
+                    }
+                    let center = rect.left_center() + egui::vec2(24.0, 0.0);
+                    ui.painter().circle_filled(center, 6.0, health_color);
+                    ui.painter().text(rect.left_top() + egui::vec2(43.0, 13.0), egui::Align2::LEFT_TOP,
+                        &disk.path, egui::FontId::proportional(14.0), Color32::from_rgb(231, 237, 245));
+                    ui.painter().text(rect.left_top() + egui::vec2(43.0, 36.0), egui::Align2::LEFT_TOP,
+                        format!("{}  •  {}", disk.health, disk.temp), egui::FontId::proportional(12.0), muted);
+                    if response.clicked() { self.selected = i; }
                 }
                 if self.disks.is_empty() {
                     ui.label(RichText::new("No drives detected").color(muted));
@@ -219,8 +236,16 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
     });
     ui.add_space(12.0);
 
-    ui.columns(2, |columns| {
-        egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(&mut columns[0], |ui| {
+    let panel_size = ui.available_size();
+    let details_width = (panel_size.x * 0.32).clamp(320.0, 440.0);
+    let table_width = (panel_size.x - details_width - 16.0).max(320.0);
+    let panel_height = panel_size.y.max(280.0);
+    ui.horizontal_top(|ui| {
+        ui.allocate_ui_with_layout(
+            egui::vec2(details_width, panel_height),
+            egui::Layout::top_down(egui::Align::Min),
+            |ui| egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
+            ui.set_min_height((panel_height - 28.0).max(180.0));
             ui.label(RichText::new("DRIVE DETAILS").strong().size(10.0).color(muted));
             ui.add_space(8.0);
             detail_row(ui, "Capacity", &d.capacity);
@@ -229,10 +254,29 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
             detail_row(ui, "Serial number", &d.serial);
             ui.add_space(8.0);
             ui.label(RichText::new("SSD life is estimated from the drive's SMART endurance data.").size(10.0).color(muted));
-        });
-        egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(&mut columns[1], |ui| {
+            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                ui.horizontal(|ui| {
+                    let (mark, _) = ui.allocate_exact_size(egui::vec2(62.0, 62.0), egui::Sense::hover());
+                    ui.painter().circle_stroke(mark.center(), 30.0, egui::Stroke::new(2.0_f32, green));
+                    ui.painter().line_segment([mark.center() - egui::vec2(0.0, 16.0), mark.center() + egui::vec2(0.0, 16.0)], egui::Stroke::new(3.0_f32, green));
+                    ui.painter().line_segment([mark.center() - egui::vec2(16.0, 0.0), mark.center() + egui::vec2(16.0, 0.0)], egui::Stroke::new(3.0_f32, green));
+                    ui.add_space(8.0);
+                    ui.vertical(|ui| {
+                        ui.label(RichText::new("Bundled smartctl").size(13.0).strong());
+                        ui.label(RichText::new("Local SMART data • no cloud upload").size(10.0).color(muted));
+                    });
+                });
+            });
+        }),
+        );
+        ui.add_space(16.0);
+        ui.allocate_ui_with_layout(
+            egui::vec2(table_width, panel_height),
+            egui::Layout::top_down(egui::Align::Min),
+            |ui| egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
+            ui.set_min_height((panel_height - 28.0).max(180.0));
             ui.label(RichText::new("S.M.A.R.T. ATTRIBUTES").strong().size(10.0).color(muted));
-            egui::ScrollArea::vertical().max_height(390.0).show(ui, |ui| {
+            egui::ScrollArea::vertical().max_height((panel_height - 58.0).max(140.0)).show(ui, |ui| {
                 egui::Grid::new("smart_attributes").striped(true).num_columns(5).show(ui, |ui| {
                     for heading in ["ID", "Attribute", "Current", "Worst", "Raw"] {
                         ui.label(RichText::new(heading).strong().color(muted));
@@ -244,7 +288,8 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
                     if d.attrs.is_empty() { ui.label("No SMART attributes reported."); }
                 });
             });
-        });
+        }),
+        );
     });
 }
 
@@ -265,6 +310,7 @@ fn detail_row(ui: &mut egui::Ui, label: &str, value: &str) {
         ui.label(RichText::new(label).color(Color32::from_rgb(145, 158, 174)));
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| { ui.label(value); });
     });
+    ui.separator();
 }
 
 fn status_color(status: &str, green: Color32) -> Color32 {
@@ -398,7 +444,7 @@ fn main() -> eframe::Result<()> {
         return helper_main().map_err(|e| eframe::Error::AppCreation(Box::new(e)));
     }
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default().with_inner_size([1180.0, 760.0]).with_min_inner_size([860.0, 620.0]),
+        viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 820.0]).with_min_inner_size([1040.0, 700.0]),
         ..Default::default()
     };
     eframe::run_native("RustDiskInfo", options, Box::new(move |_| {
