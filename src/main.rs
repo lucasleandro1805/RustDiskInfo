@@ -81,7 +81,7 @@ impl Default for App {
                     let message = if disks.is_empty() {
                         "No drives found. Check the connected devices.".into()
                     } else {
-                        format!("{} drive(s) • SMART data via bundled smartctl", disks.len())
+                        drive_count_label(disks.len())
                     };
                     (disks, message)
                 }
@@ -100,26 +100,26 @@ impl App {
             disks: vec![
                 Disk {
                     path: "/dev/nvme0".into(), model: "Samsung SSD 990 PRO 2TB".into(),
-                    serial: "S6Z2NX0W123456".into(), capacity: "2000 GB".into(), protocol: "NVMe".into(),
+                    serial: "S6Z2NX0W123456".into(), capacity: "2,000 GB".into(), protocol: "NVMe".into(),
                     temp: "39 °C".into(), hours: "1,284 h".into(), health: "Healthy".into(), life: Some(96),
                     attrs: vec![
-                        ("—".into(), "Critical warnings".into(), "0".into(), "—".into(), "0".into()),
+                        ("—".into(), "Critical warnings".into(), "None".into(), "—".into(), "0x00".into()),
                         ("—".into(), "Available spare".into(), "100%".into(), "—".into(), "100".into()),
                         ("—".into(), "Percentage used".into(), "4%".into(), "—".into(), "4".into()),
-                        ("—".into(), "Data units read".into(), "12,841,920".into(), "—".into(), "6.58 TB".into()),
-                        ("—".into(), "Data units written".into(), "8,412,605".into(), "—".into(), "4.31 TB".into()),
-                        ("—".into(), "Power-on hours".into(), "1284".into(), "—".into(), "1284".into()),
-                        ("—".into(), "Power cycles".into(), "246".into(), "—".into(), "246".into()),
+                        ("—".into(), "Data units read".into(), "6.6 TB".into(), "—".into(), "12,841,920 units".into()),
+                        ("—".into(), "Data units written".into(), "4.3 TB".into(), "—".into(), "8,412,605 units".into()),
+                        ("—".into(), "Power-on hours".into(), "1,284 h".into(), "—".into(), "1,284 h".into()),
+                        ("—".into(), "Power cycles".into(), "246 cycles".into(), "—".into(), "246 cycles".into()),
                     ],
                 },
                 Disk {
                     path: "/dev/sda".into(), model: "Crucial MX500 1TB".into(), serial: "2219E6A01234".into(),
-                    capacity: "1000 GB".into(), protocol: "SATA".into(), temp: "32 °C".into(), hours: "4,812 h".into(),
+                    capacity: "1,000 GB".into(), protocol: "SATA".into(), temp: "32 °C".into(), hours: "4,812 h".into(),
                     health: "Healthy".into(), life: Some(88), attrs: vec![],
                 },
             ],
             selected: 0,
-            message: "2 drives • SMART data via bundled smartctl".into(),
+            message: "2 drives detected".into(),
             session: None,
         }
     }
@@ -135,13 +135,17 @@ impl App {
                     self.message = if self.disks.is_empty() {
                         "No drives found. Check the connected devices.".into()
                     } else {
-                        format!("{} drive(s) • SMART data via bundled smartctl", self.disks.len())
+                        drive_count_label(self.disks.len())
                     };
                 }
                 Err(error) => self.message = error,
             }
         }
     }
+}
+
+fn drive_count_label(count: usize) -> String {
+    if count == 1 { "1 drive detected".into() } else { format!("{count} drives detected") }
 }
 
 impl eframe::App for App {
@@ -217,8 +221,8 @@ impl eframe::App for App {
 fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green: Color32) {
     ui.horizontal(|ui| {
         ui.vertical(|ui| {
-            ui.label(RichText::new(&d.model).size(24.0).strong());
-            ui.label(RichText::new(format!("{}  •  {}  •  Serial {}", d.path, d.protocol, d.serial)).size(11.0).color(muted));
+            ui.label(RichText::new(&d.model).size(27.0).strong());
+            ui.label(RichText::new(format!("{}  •  {}  •  Serial {}", d.path, d.protocol, d.serial)).size(12.0).color(muted));
         });
     });
     ui.add_space(12.0);
@@ -228,7 +232,7 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
         columns[1].set_min_width(190.0);
         columns[2].set_min_width(190.0);
         let health_color = status_color(&d.health, green);
-        gauge(&mut columns[0], "HEALTH STATUS", &d.health, health_color, card, 0.78);
+        gauge(&mut columns[0], "HEALTH STATUS", &d.health, health_color, card, 0.96);
         let life_value = d.life.map(|n| format!("{n}%")).unwrap_or_else(|| "—".into());
         let life_color = d.life.map(life_color).unwrap_or(muted);
         gauge(&mut columns[1], "SSD LIFE", &life_value, life_color, card, d.life.unwrap_or(0) as f32 / 100.0);
@@ -236,24 +240,24 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
     });
     ui.add_space(12.0);
 
-    let panel_size = ui.available_size();
-    let details_width = (panel_size.x * 0.32).clamp(320.0, 440.0);
-    let table_width = (panel_size.x - details_width - 16.0).max(320.0);
-    let panel_height = panel_size.y.max(280.0);
+    let panel_width = ui.max_rect().width();
+    let panel_height = ui.available_height().max(280.0);
+    let details_width = (panel_width * 0.32).clamp(320.0, 440.0);
+    let table_width = (panel_width - details_width - 16.0).max(320.0);
     ui.horizontal_top(|ui| {
         ui.allocate_ui_with_layout(
             egui::vec2(details_width, panel_height),
             egui::Layout::top_down(egui::Align::Min),
             |ui| egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
             ui.set_min_height((panel_height - 28.0).max(180.0));
-            ui.label(RichText::new("DRIVE DETAILS").strong().size(10.0).color(muted));
+            ui.label(RichText::new("DRIVE DETAILS").strong().size(12.0).color(muted));
             ui.add_space(8.0);
             detail_row(ui, "Capacity", &d.capacity);
             detail_row(ui, "Power-on time", &d.hours);
             detail_row(ui, "Interface", &d.protocol);
             detail_row(ui, "Serial number", &d.serial);
             ui.add_space(8.0);
-            ui.label(RichText::new("SSD life is estimated from the drive's SMART endurance data.").size(10.0).color(muted));
+            ui.label(RichText::new("SSD life is estimated from the drive's SMART endurance data.").size(12.0).color(muted));
             ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
                 ui.horizontal(|ui| {
                     let (mark, _) = ui.allocate_exact_size(egui::vec2(62.0, 62.0), egui::Sense::hover());
@@ -263,7 +267,7 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
                     ui.add_space(8.0);
                     ui.vertical(|ui| {
                         ui.label(RichText::new("Bundled smartctl").size(13.0).strong());
-                        ui.label(RichText::new("Local SMART data • no cloud upload").size(10.0).color(muted));
+                        ui.label(RichText::new("Local SMART data • no cloud upload").size(11.0).color(muted));
                     });
                 });
             });
@@ -275,15 +279,21 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
             egui::Layout::top_down(egui::Align::Min),
             |ui| egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
             ui.set_min_height((panel_height - 28.0).max(180.0));
-            ui.label(RichText::new("S.M.A.R.T. ATTRIBUTES").strong().size(10.0).color(muted));
+            ui.label(RichText::new("S.M.A.R.T. ATTRIBUTES").strong().size(12.0).color(muted));
             egui::ScrollArea::vertical().max_height((panel_height - 58.0).max(140.0)).show(ui, |ui| {
                 egui::Grid::new("smart_attributes").striped(true).num_columns(5).show(ui, |ui| {
-                    for heading in ["ID", "Attribute", "Current", "Worst", "Raw"] {
-                        ui.label(RichText::new(heading).strong().color(muted));
+                    let table_width = ui.available_width().max(400.0);
+                    let data_width = table_width - 48.0;
+                    let widths = [48.0, data_width * 0.52, data_width * 0.15, data_width * 0.14, data_width * 0.19];
+                    for (index, heading) in ["ID", "Attribute", "Current", "Worst", "Raw value"].iter().enumerate() {
+                        ui.add_sized([widths[index], 22.0], egui::Label::new(RichText::new(*heading).size(12.0).strong().color(muted)));
                     }
                     ui.end_row();
                     for (id, name, value, worst, raw) in &d.attrs {
-                        ui.label(id); ui.label(name); ui.label(value); ui.label(worst); ui.label(raw); ui.end_row();
+                        for (index, cell) in [id, name, value, worst, raw].iter().enumerate() {
+                            ui.add_sized([widths[index], 23.0], egui::Label::new(RichText::new(*cell).size(13.0)));
+                        }
+                        ui.end_row();
                     }
                     if d.attrs.is_empty() { ui.label("No SMART attributes reported."); }
                 });
@@ -296,9 +306,9 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
 fn gauge(ui: &mut egui::Ui, title: &str, value: &str, color: Color32, fill: Color32, fraction: f32) {
     egui::Frame::NONE.fill(fill).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
         ui.set_min_size(egui::vec2(0.0, 106.0));
-        ui.label(RichText::new(title).size(10.0).strong());
+        ui.label(RichText::new(title).size(12.0).strong());
         ui.add_space(6.0);
-        ui.label(RichText::new(value).size(25.0).strong().color(color));
+        ui.label(RichText::new(value).size(27.0).strong().color(color));
         ui.add_space(5.0);
         let fraction = fraction.clamp(0.0, 1.0);
         ui.add(egui::ProgressBar::new(fraction).desired_height(7.0).fill(color).corner_radius(4.0));
@@ -382,6 +392,51 @@ fn json_text(value: &Value) -> String {
         .unwrap_or_else(|| "—".into())
 }
 
+fn format_integer(value: u64) -> String {
+    let digits = value.to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index) % 3 == 0 { grouped.push(','); }
+        grouped.push(digit);
+    }
+    grouped
+}
+
+fn format_bytes(bytes: u128) -> String {
+    if bytes >= 1_000_000_000_000 {
+        format!("{:.1} TB", bytes as f64 / 1_000_000_000_000.0)
+    } else if bytes >= 1_000_000_000 {
+        format!("{:.1} GB", bytes as f64 / 1_000_000_000.0)
+    } else {
+        format!("{:.0} MB", bytes as f64 / 1_000_000.0)
+    }
+}
+
+fn nvme_attribute_value(key: &str, value: &Value) -> (String, String) {
+    let Some(number) = value.as_u64() else {
+        let value = json_text(value);
+        return (value.clone(), value);
+    };
+    let number_text = format_integer(number);
+    match key {
+        "critical_warning" => {
+            let status = if number == 0 { "None".into() } else { format!("0x{number:02X}") };
+            (status, format!("0x{number:02X}"))
+        }
+        "available_spare" | "available_spare_threshold" => (format!("{number}%"), format!("{number}%")),
+        "percentage_used" => (format!("{number}%"), format!("{number}%")),
+        "data_units_read" | "data_units_written" => {
+            (format_bytes(number as u128 * 512_000), format!("{number_text} units"))
+        }
+        "power_on_hours" => (format!("{number_text} h"), format!("{number_text} h")),
+        "power_cycles" => (format!("{number_text} cycles"), format!("{number_text} cycles")),
+        "unsafe_shutdowns" => (format!("{number_text} events"), format!("{number_text} events")),
+        "media_errors" => (format!("{number_text} errors"), format!("{number_text} errors")),
+        "num_err_log_entries" => (format!("{number_text} entries"), format!("{number_text} entries")),
+        _ => (number_text.clone(), number_text),
+    }
+}
+
 fn parse_disks(response: &Value) -> Vec<Disk> {
     response["devices"].as_array().into_iter().flatten().filter_map(|entry| {
         let path = entry["path"].as_str()?.to_string();
@@ -405,7 +460,10 @@ fn parse_disks(response: &Value) -> Vec<Disk> {
                 ("Power-on hours", "power_on_hours"), ("Power cycles", "power_cycles"),
                 ("Unsafe shutdowns", "unsafe_shutdowns"), ("Media errors", "media_errors"),
                 ("Error log entries", "num_err_log_entries")] {
-                if !nvme[key].is_null() { let value = json_text(&nvme[key]); attrs.push(("—".into(), name.into(), value.clone(), "—".into(), value)); }
+                if !nvme[key].is_null() {
+                    let (value, raw) = nvme_attribute_value(key, &nvme[key]);
+                    attrs.push(("—".into(), name.into(), value, "—".into(), raw));
+                }
             }
         }
         let bytes = j["user_capacity"]["bytes"].as_u64().unwrap_or(0);
@@ -415,10 +473,10 @@ fn parse_disks(response: &Value) -> Vec<Disk> {
         let health = match passed { Some(true) => "Healthy", Some(false) => "FAILED", None => "Unavailable" };
         Some(Disk {
             path, model: model.into(), serial: serial.into(),
-            capacity: if bytes > 0 { format!("{:.0} GB", bytes as f64 / 1e9) } else { "—".into() },
+            capacity: if bytes > 0 { format!("{} GB", format_integer(bytes / 1_000_000_000)) } else { "—".into() },
             protocol: j["device"]["protocol"].as_str().or(j["device"]["type"].as_str()).unwrap_or(dtype).into(),
             temp: j["temperature"]["current"].as_i64().or(nvme["temperature"].as_i64()).map(|n| format!("{n} °C")).unwrap_or_else(|| "— °C".into()),
-            hours: j["power_on_time"]["hours"].as_u64().or(nvme["power_on_hours"].as_u64()).map(|n| format!("{n} h")).unwrap_or_else(|| "—".into()),
+            hours: j["power_on_time"]["hours"].as_u64().or(nvme["power_on_hours"].as_u64()).map(|n| format!("{} h", format_integer(n))).unwrap_or_else(|| "—".into()),
             health: health.into(), life, attrs,
         })
     }).collect()
