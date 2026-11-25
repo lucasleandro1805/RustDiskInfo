@@ -8,14 +8,14 @@ export CARGO_HOME="$project_root/build/.cargo-home"
 export CARGO_TARGET_DIR="$project_root/build"
 export PATH="$CARGO_HOME/bin:$PATH"
 for tool in tar sha256sum make g++; do
- command -v "$tool" >/dev/null 2>&1 || { printf 'Ferramenta de compilação ausente: %s\n' "$tool" >&2; exit 1; }
+ command -v "$tool" >/dev/null 2>&1 || { printf 'Required build tool is missing: %s\n' "$tool" >&2; exit 1; }
 done
 if ! command -v cargo >/dev/null 2>&1; then
- command -v curl >/dev/null 2>&1 || { printf 'curl é necessário para instalar a toolchain Rust local.\n' >&2; exit 1; }
+ command -v curl >/dev/null 2>&1 || { printf 'curl is required to install the local Rust toolchain.\n' >&2; exit 1; }
  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | env RUSTUP_HOME="$RUSTUP_HOME" CARGO_HOME="$CARGO_HOME" sh -s -- -y --no-modify-path --profile minimal
  export PATH="$CARGO_HOME/bin:$PATH"
 fi
-printf '%s  %s\n' "$archive_sha256" "$archive" | sha256sum --check --status || { printf 'Arquivo smartmontools falhou na verificação SHA-256.\n' >&2; exit 1; }
+printf '%s  %s\n' "$archive_sha256" "$archive" | sha256sum --check --status || { printf 'smartmontools source archive failed SHA-256 verification.\n' >&2; exit 1; }
 cargo build --release --manifest-path "$project_root/Cargo.toml"
 smartctl_source="$project_root/build/smartmontools-7.5"
 if [[ ! -d "$smartctl_source" ]]; then
@@ -28,4 +28,4 @@ fi
 make -C "$smartctl_source" -j2 smartctl
 install -m 0755 "$smartctl_source/smartctl" "$project_root/build/release/smartctl"
 install -m 0644 "$smartctl_source/drivedb.h" "$project_root/build/release/drivedb.h"
-printf 'Aplicativo e smartctl empacotados em %s\n' "$project_root/build/release"
+printf 'Application and bundled smartctl built in %s\n' "$project_root/build/release"

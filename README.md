@@ -1,11 +1,11 @@
 <div align="center">
-  <img src="assets/rustdiskinfo-icon.png" alt="Ícone do RustDiskInfo: disco com anel verde de saúde" width="160">
+  <img src="assets/rustdiskinfo-icon.png" alt="RustDiskInfo drive health icon" width="144">
 
   # RustDiskInfo
 
-  **Saúde dos seus discos, de relance.**
+  **A clear view of your drive health.**
 
-  Monitor S.M.A.R.T. para Linux, feito em Rust com egui e inspirado no CrystalDiskInfo e no QDiskInfo.
+  A Linux S.M.A.R.T. monitor built with Rust and egui, inspired by CrystalDiskInfo and [QDiskInfo](https://github.com/edisionnano/QDiskInfo).
 
   ![Linux](https://img.shields.io/badge/Linux-desktop-222?logo=linux&logoColor=white)
   ![Rust](https://img.shields.io/badge/Rust-2021-orange?logo=rust&logoColor=white)
@@ -15,55 +15,64 @@
 
 ---
 
-## Visão geral
+## Preview
 
-O RustDiskInfo apresenta informações de saúde e atributos S.M.A.R.T. das unidades detectadas pelo smartctl, em uma interface desktop escura e direta.
+![RustDiskInfo showing drive health, SSD life, temperature, and S.M.A.R.T. attributes](assets/rustdiskinfo-preview.png)
 
-Ao abrir, o app mostra uma tela inicial com o resumo das unidades detectadas e um botão para entrar no monitor. O atalho criado pelo instalador aparece no menu de aplicativos com o ícone do RustDiskInfo.
+*Example interface with sample values.*
 
-### O que mostra
+## Overview
 
-- Unidades detectadas e modelo
-- Estado geral de saúde S.M.A.R.T.
-- Temperatura e horas de funcionamento
-- Capacidade, número de série e protocolo
-- Tabela de atributos S.M.A.R.T. ATA
-- Atualização manual dos dados
+RustDiskInfo presents health and S.M.A.R.T. attributes for detected drives in a dark desktop interface. The drive selector, health and temperature panels, device details, and attribute table follow the information layout of QDiskInfo.
 
-## Requisitos
+### Features
 
-- Linux com ambiente gráfico compatível com X11
-- Rust e Cargo para compilar
-- Compilador C++ e GNU make para compilar o smartctl que já vem empacotado no projeto
-- Permissões do sistema para ler os dispositivos S.M.A.R.T. (alguns discos exigem acesso elevado)
-- PolicyKit (pkexec) para solicitar autorização quando o sistema bloqueia o acesso a uma unidade
+- Detected drives, model, capacity, serial number, and interface
+- S.M.A.R.T. health status, temperature, and power-on hours
+- SSD life estimate from NVMe percentage used or supported ATA endurance attributes
+- Detailed ATA and NVMe S.M.A.R.T. attributes
+- Manual refresh without another password prompt during the same app session
+- Bundled smartctl and drive database
 
-O código-fonte do smartmontools 7.5 está incluído em vendor. O script verifica o SHA-256 e compila smartctl durante o build; não é necessário instalar smartmontools no sistema. O executável smartctl e a base drivedb.h são instalados junto do RustDiskInfo.
+## Requirements
 
-## Compilar
+- Linux desktop with X11
+- Rust and Cargo to build the application
+- C++ compiler and GNU make to build the bundled smartctl
+- PolicyKit (`pkexec`) for the one-time authorization at app startup
 
-    ./scripts/build.sh
+The smartmontools 7.5 source archive is included in `vendor`. The build script verifies its SHA-256 and builds smartctl; installing smartmontools system-wide is not required.
 
-O binário de release é criado em build/release/rustdiskinfo.
+## Build
 
-## Instalar
+```bash
+./scripts/build.sh
+```
 
-    sudo ./scripts/install.sh
+The release binary is written to `build/release/rustdiskinfo`.
 
-O script instala o app, o smartctl e a base drivedb.h no perfil do usuário que chamou sudo, além do ícone e do atalho no menu. Também instala um helper protegido em /usr/local/libexec para o app solicitar autorização do sistema ao ler unidades com acesso restrito. Não configura inicialização automática.
+## Install
 
-Para instalar um binário já compilado, passe o caminho como argumento:
+```bash
+sudo ./scripts/install.sh
+```
 
-    sudo ./scripts/install.sh /caminho/para/rustdiskinfo
+The installer adds the app, bundled smartctl, drive database, icon, and desktop shortcut to the invoking user's profile. It installs a root-owned helper under `/usr/local/libexec/rustdiskinfo` so the app can request authorization once and keep the SMART session open for subsequent refreshes. It does not configure autostart.
 
-## Estado do projeto
+To install an already-built application binary, pass its path:
 
-Esta é a primeira versão. A leitura S.M.A.R.T. depende do formato JSON fornecido pelo smartctl; os atributos detalhados disponíveis variam conforme a unidade e a controladora.
+```bash
+sudo ./scripts/install.sh /path/to/rustdiskinfo
+```
 
-## Créditos e licenças
+## Project status
 
-A interface e o fluxo de informação foram inspirados pelo [QDiskInfo](https://github.com/edisionnano/QDiskInfo), projeto GPL-3.0.
+This is an early release. Available SMART attributes depend on the drive and controller. SSD life is shown only when the drive reports an endurance value RustDiskInfo can interpret.
 
-O instalador pode incluir uma cópia do smartctl, parte do [smartmontools](https://github.com/smartmontools/smartmontools), licenciado sob GPL-2.0-or-later. Os créditos e avisos estão em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## Credits and licenses
 
-Este projeto está licenciado sob [GNU GPL-3.0-or-later](LICENSE).
+The interface and information flow are inspired by [QDiskInfo](https://github.com/edisionnano/QDiskInfo), licensed under GPL-3.0.
+
+The bundled [smartmontools](https://github.com/smartmontools/smartmontools) source is licensed under GPL-2.0-or-later. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for details.
+
+This project is licensed under [GNU GPL-3.0-or-later](LICENSE).

@@ -2,7 +2,7 @@
 name="rustdiskinfo"
 version="0.1.0"
 edition="2021"
-description="Monitor S.M.A.R.T. de discos para Linux com egui"
+description="Linux S.M.A.R.T. drive monitor built with egui"
 license="GPL-3.0-or-later"
 [[bin]]
 name="rustdiskinfo"
