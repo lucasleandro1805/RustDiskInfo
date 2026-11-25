@@ -100,7 +100,7 @@ impl App {
             disks: vec![
                 Disk {
                     path: "/dev/nvme0".into(), model: "Samsung SSD 990 PRO 2TB".into(),
-                    serial: "S6Z2NX0W123456".into(), capacity: "2,000 GB".into(), protocol: "NVMe".into(),
+                    serial: "S6Z2NX0W123456".into(), capacity: "2.00 TB".into(), protocol: "NVMe".into(),
                     temp: "39 °C".into(), hours: "1,284 h".into(), health: "Healthy".into(), life: Some(96),
                     attrs: vec![
                         ("—".into(), "Critical warnings".into(), "None".into(), "—".into(), "0x00".into()),
@@ -114,7 +114,7 @@ impl App {
                 },
                 Disk {
                     path: "/dev/sda".into(), model: "Crucial MX500 1TB".into(), serial: "2219E6A01234".into(),
-                    capacity: "1,000 GB".into(), protocol: "SATA".into(), temp: "32 °C".into(), hours: "4,812 h".into(),
+                    capacity: "1.00 TB".into(), protocol: "SATA".into(), temp: "32 °C".into(), hours: "4,812 h".into(),
                     health: "Healthy".into(), life: Some(88), attrs: vec![],
                 },
             ],
@@ -249,6 +249,7 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
             egui::vec2(details_width, panel_height),
             egui::Layout::top_down(egui::Align::Min),
             |ui| egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
+            ui.set_min_width((details_width - 28.0).max(280.0));
             ui.set_min_height((panel_height - 28.0).max(180.0));
             ui.label(RichText::new("DRIVE DETAILS").strong().size(12.0).color(muted));
             ui.add_space(8.0);
@@ -278,20 +279,24 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
             egui::vec2(table_width, panel_height),
             egui::Layout::top_down(egui::Align::Min),
             |ui| egui::Frame::NONE.fill(card).corner_radius(9.0).inner_margin(14.0).show(ui, |ui| {
+            ui.set_min_width((table_width - 28.0).max(280.0));
             ui.set_min_height((panel_height - 28.0).max(180.0));
             ui.label(RichText::new("S.M.A.R.T. ATTRIBUTES").strong().size(12.0).color(muted));
-            egui::ScrollArea::vertical().max_height((panel_height - 58.0).max(140.0)).show(ui, |ui| {
-                egui::Grid::new("smart_attributes").striped(true).num_columns(5).show(ui, |ui| {
-                    let table_width = ui.available_width().max(400.0);
-                    let data_width = table_width - 48.0;
+            egui::ScrollArea::vertical().auto_shrink([false, false]).max_height((panel_height - 58.0).max(140.0)).show(ui, |ui| {
+                // ScrollArea sizes its contents to their natural width by default; keep the
+                // table aligned with the full SMART card so columns use the available space.
+                ui.set_min_width((table_width - 56.0).max(300.0));
+                let grid_width = (table_width - 56.0).max(300.0);
+                let data_width = grid_width - 48.0;
                     let widths = [48.0, data_width * 0.52, data_width * 0.15, data_width * 0.14, data_width * 0.19];
+                    egui::Grid::new("smart_attributes").striped(true).num_columns(5).show(ui, |ui| {
                     for (index, heading) in ["ID", "Attribute", "Current", "Worst", "Raw value"].iter().enumerate() {
-                        ui.add_sized([widths[index], 22.0], egui::Label::new(RichText::new(*heading).size(12.0).strong().color(muted)));
+                        ui.add_sized([widths[index], 22.0], egui::Label::new(RichText::new(*heading).size(12.0).strong().color(muted)).halign(egui::Align::Min));
                     }
                     ui.end_row();
                     for (id, name, value, worst, raw) in &d.attrs {
                         for (index, cell) in [id, name, value, worst, raw].iter().enumerate() {
-                            ui.add_sized([widths[index], 23.0], egui::Label::new(RichText::new(*cell).size(13.0)));
+                            ui.add_sized([widths[index], 23.0], egui::Label::new(RichText::new(*cell).size(13.0)).halign(egui::Align::Min));
                         }
                         ui.end_row();
                     }
@@ -412,6 +417,23 @@ fn format_bytes(bytes: u128) -> String {
     }
 }
 
+fn format_capacity(bytes: u64) -> String {
+    let (value, unit) = if bytes >= 1_000_000_000_000 {
+        (bytes as f64 / 1_000_000_000_000.0, "TB")
+    } else if bytes >= 1_000_000_000 {
+        (bytes as f64 / 1_000_000_000.0, "GB")
+    } else if bytes >= 1_000_000 {
+        (bytes as f64 / 1_000_000.0, "MB")
+    } else if bytes >= 1_000 {
+        (bytes as f64 / 1_000.0, "KB")
+    } else {
+        return format!("{bytes} B");
+    };
+    if value >= 100.0 { format!("{value:.0} {unit}") }
+    else if value >= 10.0 { format!("{value:.1} {unit}") }
+    else { format!("{value:.2} {unit}") }
+}
+
 fn nvme_attribute_value(key: &str, value: &Value) -> (String, String) {
     let Some(number) = value.as_u64() else {
         let value = json_text(value);
@@ -473,7 +495,7 @@ fn parse_disks(response: &Value) -> Vec<Disk> {
         let health = match passed { Some(true) => "Healthy", Some(false) => "FAILED", None => "Unavailable" };
         Some(Disk {
             path, model: model.into(), serial: serial.into(),
-            capacity: if bytes > 0 { format!("{} GB", format_integer(bytes / 1_000_000_000)) } else { "—".into() },
+            capacity: if bytes > 0 { format_capacity(bytes) } else { "—".into() },
             protocol: j["device"]["protocol"].as_str().or(j["device"]["type"].as_str()).unwrap_or(dtype).into(),
             temp: j["temperature"]["current"].as_i64().or(nvme["temperature"].as_i64()).map(|n| format!("{n} °C")).unwrap_or_else(|| "— °C".into()),
             hours: j["power_on_time"]["hours"].as_u64().or(nvme["power_on_hours"].as_u64()).map(|n| format!("{} h", format_integer(n))).unwrap_or_else(|| "—".into()),
