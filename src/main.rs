@@ -155,7 +155,9 @@ impl eframe::App for App {
         let muted = Color32::from_rgb(145, 158, 174);
         let green = Color32::from_rgb(65, 190, 152);
         ctx.set_visuals(egui::Visuals::dark());
-        egui::CentralPanel::default().frame(egui::Frame::NONE.fill(bg)).show(ctx, |ui| {
+        egui::CentralPanel::default()
+            .frame(egui::Frame::NONE.fill(bg).inner_margin(egui::Margin::same(18)))
+            .show(ctx, |ui| {
             egui::Frame::NONE
                 .fill(Color32::from_rgb(35, 42, 52))
                 .inner_margin(egui::Margin::symmetric(18, 10))
@@ -173,7 +175,7 @@ impl eframe::App for App {
                         });
                     });
                 });
-            ui.add_space(18.0);
+            ui.add_space(8.0);
 
             ui.horizontal_wrapped(|ui| {
                 for (i, disk) in self.disks.iter().enumerate() {
@@ -241,7 +243,8 @@ fn drive_view(ui: &mut egui::Ui, d: &Disk, card: Color32, muted: Color32, green:
     ui.add_space(12.0);
 
     let panel_width = ui.max_rect().width();
-    let panel_height = ui.available_height().max(280.0);
+    // Keep the dashboard compact enough to fit in the initial window without scrolling.
+    let panel_height = ui.available_height().clamp(300.0, 360.0);
     let details_width = (panel_width * 0.32).clamp(320.0, 440.0);
     let table_width = (panel_width - details_width - 16.0).max(320.0);
     ui.horizontal_top(|ui| {
