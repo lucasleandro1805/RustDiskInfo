@@ -4,7 +4,13 @@ use std::process::Command;
 #[derive(Clone,Default)]
 struct Disk{path:String,model:String,serial:String,capacity:String,protocol:String,temp:String,hours:String,health:String,attrs:Vec<(String,String,String,String,String)>}
 struct App{disks:Vec<Disk>,selected:usize,message:String,started:bool}
-fn smartctl()->Command{let mut p=std::env::current_exe().unwrap_or_default();p.set_file_name("smartctl");if p.exists(){Command::new(p)}else{Command::new("smartctl")}}
+fn smartctl()->Command{
+let mut executable=std::env::current_exe().unwrap_or_default();executable.set_file_name("smartctl");
+let mut command=if executable.is_file(){Command::new(executable)}else{Command::new("smartctl")};
+let mut database=std::env::current_exe().unwrap_or_default();database.set_file_name("drivedb.h");
+if database.is_file(){command.args(["-B",database.to_string_lossy().as_ref()]);}
+command
+}
 impl Default for App{fn default()->Self{let mut a=Self{disks:vec![],selected:0,message:String::new(),started:false};a.refresh();a}}
 impl App{fn refresh(&mut self){self.disks=scan();self.selected=self.selected.min(self.disks.len().saturating_sub(1));self.message=if self.disks.is_empty(){"Nenhum disco encontrado. Verifique smartctl e permissões.".into()}else{format!("{} disco(s) • dados via smartctl",self.disks.len())};}}
 impl eframe::App for App{fn update(&mut self,ctx:&egui::Context,_:&mut eframe::Frame){

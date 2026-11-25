@@ -34,10 +34,10 @@ Ao abrir, o app mostra uma tela inicial com o resumo das unidades detectadas e u
 
 - Linux com ambiente gráfico compatível com X11
 - Rust e Cargo para compilar
-- smartctl disponível na máquina que prepara a instalação
+- Compilador C++ e GNU make para compilar o smartctl que já vem empacotado no projeto
 - Permissões do sistema para ler os dispositivos S.M.A.R.T. (alguns discos exigem acesso elevado)
 
-O instalador copia o executável smartctl para ~/.local/bin junto com o RustDiskInfo. Assim, após a instalação, o app procura primeiro essa cópia ao lado do próprio executável.
+O código-fonte do smartmontools 7.5 está incluído em vendor. O script verifica o SHA-256 e compila smartctl durante o build; não é necessário instalar smartmontools no sistema. O executável smartctl e a base drivedb.h são instalados junto do RustDiskInfo.
 
 ## Compilar
 
@@ -49,7 +49,7 @@ O binário de release é criado em build/release/rustdiskinfo.
 
     ./scripts/install.sh
 
-O script instala o app e o smartctl em ~/.local/bin e cria um atalho no menu de aplicativos. Não configura inicialização automática.
+O script instala o app, o smartctl e a base drivedb.h em ~/.local/bin, instala o ícone e cria um atalho no menu de aplicativos. Também direciona os arquivos para o perfil do usuário que chamou sudo. Não configura inicialização automática.
 
 Para instalar um binário já compilado, passe o caminho como argumento:
 
