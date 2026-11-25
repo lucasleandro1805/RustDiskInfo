@@ -1,0 +1,16 @@
+[package]
+name="rustdiskinfo"
+version="0.1.0"
+edition="2021"
+description="Monitor S.M.A.R.T. de discos para Linux com egui"
+license="GPL-3.0-or-later"
+[[bin]]
+name="rustdiskinfo"
+path="src/main.rs"
+[dependencies]
+eframe={version="0.31",default-features=false,features=["default_fonts","glow","x11"]}
+serde_json="1"
+[profile.release]
+lto=true
+codegen-units=1
+strip=true
