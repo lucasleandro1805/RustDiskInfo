@@ -4,13 +4,14 @@ project_root="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 "$project_root/scripts/build.sh"
 bin="$project_root/build/release/rustdiskinfo"
 if [[ $# -gt 0 ]]; then bin="$1"; fi
-install_dir="$HOME/.local/bin"; applications="$HOME/.local/share/applications"
+install_dir="$HOME/.local/bin"; applications="$HOME/.local/share/applications"; icons="$HOME/.local/share/icons/hicolor/256x256/apps"
 [[ -x "$bin" ]] || { printf 'Binário não encontrado: %s\n' "$bin" >&2; exit 1; }
 smartctl_path="$(command -v smartctl || true)"
 [[ -n "$smartctl_path" ]] || { echo 'Instale smartmontools antes deste empacotamento.' >&2; exit 1; }
-mkdir -p "$install_dir" "$applications"
+mkdir -p "$install_dir" "$applications" "$icons"
 install -m 0755 "$bin" "$install_dir/rustdiskinfo"
 install -m 0755 "$smartctl_path" "$install_dir/smartctl"
+install -m 0644 "$project_root/assets/rustdiskinfo-icon.png" "$icons/rustdiskinfo.png"
 cat > "$applications/rustdiskinfo.desktop" <<EOF2
 [Desktop Entry]
 Type=Application
@@ -20,6 +21,8 @@ Exec=$install_dir/rustdiskinfo
 Terminal=false
 Categories=System;Monitor;
 StartupNotify=true
+Icon=rustdiskinfo
 EOF2
+if command -v update-desktop-database >/dev/null 2>&1; then update-desktop-database "$applications" >/dev/null 2>&1 || true; fi
 printf 'Instalado app e smartctl em %s\n' "$install_dir"
 printf 'Atalho criado no menu; inicialização automática não configurada.\n'

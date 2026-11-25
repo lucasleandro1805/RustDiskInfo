@@ -19,6 +19,8 @@
 
 O RustDiskInfo apresenta informações de saúde e atributos S.M.A.R.T. das unidades detectadas pelo smartctl, em uma interface desktop escura e direta.
 
+Ao abrir, o app mostra uma tela inicial com o resumo das unidades detectadas e um botão para entrar no monitor. O atalho criado pelo instalador aparece no menu de aplicativos com o ícone do RustDiskInfo.
+
 ### O que mostra
 
 - Unidades detectadas e modelo

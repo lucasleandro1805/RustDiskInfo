@@ -3,17 +3,47 @@ use serde_json::Value;
 use std::process::Command;
 #[derive(Clone,Default)]
 struct Disk{path:String,model:String,serial:String,capacity:String,protocol:String,temp:String,hours:String,health:String,attrs:Vec<(String,String,String,String,String)>}
-struct App{disks:Vec<Disk>,selected:usize,message:String}
+struct App{disks:Vec<Disk>,selected:usize,message:String,started:bool}
 fn smartctl()->Command{let mut p=std::env::current_exe().unwrap_or_default();p.set_file_name("smartctl");if p.exists(){Command::new(p)}else{Command::new("smartctl")}}
-impl Default for App{fn default()->Self{let mut a=Self{disks:vec![],selected:0,message:String::new()};a.refresh();a}}
+impl Default for App{fn default()->Self{let mut a=Self{disks:vec![],selected:0,message:String::new(),started:false};a.refresh();a}}
 impl App{fn refresh(&mut self){self.disks=scan();self.selected=self.selected.min(self.disks.len().saturating_sub(1));self.message=if self.disks.is_empty(){"Nenhum disco encontrado. Verifique smartctl e permissões.".into()}else{format!("{} disco(s) • dados via smartctl",self.disks.len())};}}
 impl eframe::App for App{fn update(&mut self,ctx:&egui::Context,_:&mut eframe::Frame){
 let bg=Color32::from_rgb(18,22,29);let card=Color32::from_rgb(27,33,42);let muted=Color32::from_rgb(145,158,174);let green=Color32::from_rgb(65,190,152);ctx.set_visuals(egui::Visuals::dark());
+if !self.started { welcome(ctx,self,bg,card,muted,green); return; }
 egui::CentralPanel::default().frame(egui::Frame::NONE.fill(bg)).show(ctx,|ui|{
-ui.add_space(12.);ui.horizontal(|ui|{ui.label(RichText::new("◉  RUSTDISKINFO").size(17.).strong());ui.label(RichText::new("S.M.A.R.T. MONITOR").size(10.).color(muted));ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{if ui.button("⟳ Atualizar").clicked(){self.refresh()}ui.label(RichText::new(&self.message).size(11.).color(muted));});});ui.add_space(12.);
+ui.add_space(12.);ui.horizontal(|ui|{ui.label(RichText::new("◉  RUSTDISKINFO").size(17.).strong());ui.label(RichText::new("S.M.A.R.T. MONITOR").size(10.).color(muted));ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{if ui.button("⌂ Início").clicked(){self.started=false}if ui.button("⟳ Atualizar").clicked(){self.refresh()}ui.label(RichText::new(&self.message).size(11.).color(muted));});});ui.add_space(12.);
 ui.columns(2,|c|{c[0].set_min_width(230.);egui::Frame::NONE.fill(card).corner_radius(10.).inner_margin(14.).show(&mut c[0],|ui|{ui.label(RichText::new("UNIDADES").size(10.).strong().color(muted));ui.add_space(8.);if self.disks.is_empty(){ui.label("Nenhuma unidade disponível");}for(i,d)in self.disks.iter().enumerate(){let active=self.selected==i;let t=format!("●  {}\n    {} • {}",d.path,d.model,d.capacity);if ui.add_sized([ui.available_width(),56.],egui::Button::new(RichText::new(t).size(12.)).fill(if active{Color32::from_rgb(39,61,65)}else{card})).clicked(){self.selected=i;}}ui.add_space(12.);ui.label(RichText::new("Sobre SMART").strong().size(11.).color(muted));ui.label(RichText::new("A leitura usa smartctl, empacotado junto ao programa. Alguns dispositivos exigem permissões elevadas.").size(10.).color(muted));});
 egui::Frame::NONE.fill(bg).inner_margin(egui::Margin::symmetric(14,0)).show(&mut c[1],|ui|{if let Some(d)=self.disks.get(self.selected){view(ui,d,card,muted,green)}else{ui.centered_and_justified(|ui|{ui.label("Conecte um disco para começar");});}});
 });});}}
+fn welcome(ctx:&egui::Context,app:&mut App,bg:Color32,card:Color32,muted:Color32,green:Color32){
+egui::CentralPanel::default().frame(egui::Frame::NONE.fill(bg)).show(ctx,|ui|{
+ui.vertical_centered(|ui|{
+ui.add_space(56.);
+ui.label(RichText::new("◉").size(64.).strong().color(green));
+ui.add_space(8.);
+ui.label(RichText::new("RustDiskInfo").size(34.).strong());
+ui.label(RichText::new("Saúde dos seus discos, de relance.").size(16.).color(muted));
+ui.add_space(26.);
+egui::Frame::NONE.fill(card).corner_radius(14.).inner_margin(24.).show(ui,|ui|{
+ui.set_max_width(560.);
+ui.label(RichText::new("MONITORAMENTO S.M.A.R.T.").size(11.).strong().color(green));
+ui.add_space(8.);
+ui.label(RichText::new("Acompanhe a saúde, temperatura e atributos dos seus discos em um só lugar.").size(15.));
+ui.add_space(16.);
+ui.horizontal(|ui|{
+ui.label(RichText::new(format!("{} unidade(s) detectada(s)",app.disks.len())).color(muted));
+ui.with_layout(egui::Layout::right_to_left(egui::Align::Center),|ui|{
+if ui.add(egui::Button::new(RichText::new("Abrir monitor  →").strong()).fill(green)).clicked(){app.started=true;}
+if ui.button("⟳ Atualizar").clicked(){app.refresh();}
+});
+});
+if app.disks.is_empty(){ui.add_space(10.);ui.label(RichText::new(&app.message).size(11.).color(muted));}
+});
+ui.add_space(20.);
+ui.label(RichText::new("Leitura fornecida pelo smartctl • Os dados permanecem no seu computador").size(11.).color(muted));
+});
+});
+}
 fn view(ui:&mut egui::Ui,d:&Disk,card:Color32,muted:Color32,green:Color32){ui.label(RichText::new(&d.model).size(22.).strong());ui.label(RichText::new(format!("{} • {} • SN {}",d.path,d.protocol,d.serial)).size(11.).color(muted));ui.add_space(12.);ui.horizontal(|ui|{metric(ui,"SAÚDE",&d.health,green,card);metric(ui,"TEMPERATURA",&d.temp,Color32::from_rgb(246,177,78),card);metric(ui,"TEMPO LIGADO",&d.hours,Color32::from_rgb(106,173,236),card);});ui.add_space(12.);egui::Frame::NONE.fill(card).corner_radius(9.).inner_margin(12.).show(ui,|ui|{ui.label(RichText::new("ATRIBUTOS S.M.A.R.T.").strong().size(10.).color(muted));egui::ScrollArea::vertical().max_height(460.).show(ui,|ui|{egui::Grid::new("smart").striped(true).show(ui,|ui|{for h in ["ID","Atributo","Valor","Pior","Bruto"]{ui.label(RichText::new(h).strong().color(muted));}ui.end_row();for(id,n,v,w,r)in &d.attrs{ui.label(id);ui.label(n);ui.label(v);ui.label(w);ui.label(r);ui.end_row();}if d.attrs.is_empty(){ui.label("Sem atributos SMART informados.");}});});});}
 fn metric(ui:&mut egui::Ui,title:&str,value:&str,color:Color32,fill:Color32){egui::Frame::NONE.fill(fill).corner_radius(9.).inner_margin(12.).show(ui,|ui|{ui.set_min_size(egui::vec2(126.,67.));ui.label(RichText::new(title).size(9.).strong());ui.label(RichText::new(value).size(20.).strong().color(color));});}
 fn scan()->Vec<Disk>{let Ok(o)=smartctl().args(["--scan-open","-j"]).output()else{return vec![]};let scan:Value=serde_json::from_slice(&o.stdout).unwrap_or(Value::Null);scan["devices"].as_array().into_iter().flatten().filter_map(|dev|{
